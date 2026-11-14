@@ -3,7 +3,6 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Gestion_tickets\TicketController;
 use App\Http\Controllers\Gestion_tickets\CommentaireController;
-use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Middleware\RoleMiddleware;
@@ -39,14 +38,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         return view('admin.dashboard');
     })->name('admin.dashboard');
 
-    // Gestion des utilisateurs (uniquement admin)
-    Route::resource('users', UserController::class)
-        ->only(['index', 'edit', 'update'])
-        ->names([
-            'index' => 'web.users.index',
-            'edit' => 'web.users.edit',
-            'update' => 'web.users.update'
-        ]);
+    // La gestion des utilisateurs se fait via l'API (/api/users) et le frontend Vue.
 });
 
 require __DIR__.'/auth.php';

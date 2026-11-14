@@ -87,7 +87,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/users/{user}', [UserController::class, 'show'])->name('api.users.show');
 
     // Routes réservées aux administrateurs - utilisation d'une vérification manuelle
-    Route::post('/users', [UserController::class, 'store']);
     Route::put('/users/{user}', [UserController::class, 'update']);
     Route::delete('/users/{user}', [UserController::class, 'destroy']);
     Route::patch('/users/{user}/role', [UserController::class, 'changeRole']);
