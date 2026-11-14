@@ -18,32 +18,25 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Crée ou met à jour l'utilisateur admin principal
-        $admin = User::updateOrCreate(
-            ['email' => 'bamine@gmail.com'], // Clé unique pour éviter les doublons
-            [
-                'name' => 'Bamine Admin',
-                'password' => bcrypt('secure_password_123'), // Remplace par un mot de passe fort
-                'email_verified_at' => now(),
-            ]
-        );
+        // Compte admin initial : identifiants lus depuis le .env, jamais écrits dans le code.
+        $adminEmail = env('SEED_ADMIN_EMAIL');
+        $adminPassword = env('SEED_ADMIN_PASSWORD');
 
-        // Assigne uniquement le rôle admin (supprime les autres rôles)
-        $admin->syncRoles(['admin']);
+        if ($adminEmail && $adminPassword) {
+            $admin = User::updateOrCreate(
+                ['email' => $adminEmail],
+                [
+                    'name' => env('SEED_ADMIN_NAME', 'Administrateur'),
+                    'password' => bcrypt($adminPassword),
+                    'email_verified_at' => now(),
+                ]
+            );
+            $admin->syncRoles(['admin']);
+        } else {
+            $this->command?->warn('SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD absents : aucun admin créé.');
+        }
 
-        // Crée ou met à jour l'utilisateur test standard
-        $user = User::updateOrCreate(
-            ['email' => 'test@gmail.com'], // Clé unique pour éviter les doublons
-            [
-                'name' => 'test user',
-                'password' => bcrypt('secure_password_123'), // Remplace par un mot de passe fort
-                'email_verified_at' => now(),
-            ]
-        );
-
-        // Assigne uniquement le rôle utilisateur standard
-        $user->syncRoles(['user']);
-        
-        // Crée des utilisateurs supplémentaires, des tickets et des commentaires pour les tests
+        // Données de démonstration (mots de passe connus) : jamais en production
         if (app()->environment('local', 'development', 'testing')) {
             $this->call([
                 UserSeeder::class,
