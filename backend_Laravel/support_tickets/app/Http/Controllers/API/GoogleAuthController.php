@@ -71,7 +71,7 @@ class GoogleAuthController extends Controller
                 $user = User::create([
                     'name' => $googleUser->name,
                     'email' => $googleUser->email,
-                    'password' => Hash::make(substr(md5(rand()), 0, 10)), // Mot de passe aléatoire
+                    'password' => Hash::make(\Illuminate\Support\Str::random(40)), // Mot de passe aléatoire
                     'email_verified_at' => now(), // Marquer l'email comme vérifié
                 ]);
 
@@ -84,7 +84,7 @@ class GoogleAuthController extends Controller
             \Log::info('Token généré pour l\'utilisateur: ' . $user->id);
 
             // Rediriger vers le frontend avec le token en paramètre
-            return redirect('http://localhost:3000/auth/google/callback?token=' . $token);
+            return redirect(rtrim(config('app.frontend_url'), '/') . '/auth/google/callback?token=' . $token);
 
         } catch (\Exception $e) {
             // Journaliser l'erreur pour déboguer
@@ -92,7 +92,7 @@ class GoogleAuthController extends Controller
             \Log::error('Trace: ' . $e->getTraceAsString());
             
             // Rediriger vers la page de login avec un message d'erreur
-            return redirect('http://localhost:3000/login?error=google_auth_failed&message=' . urlencode($e->getMessage()));
+            return redirect(rtrim(config('app.frontend_url'), '/') . '/login?error=google_auth_failed');
         }
     }
 
@@ -109,28 +109,28 @@ class GoogleAuthController extends Controller
         ]);
 
         try {
-            // Vu00e9rifier le token ID avec Google
+            // Vérifier le token ID avec Google
             $googleUser = Socialite::driver('google')->userFromToken($request->id_token);
 
-            // Vu00e9rifier si l'utilisateur existe du00e9ju00e0
+            // Vérifier si l'utilisateur existe déjà
             $user = User::where('email', $googleUser->email)->first();
 
-            // Si l'utilisateur n'existe pas, cru00e9er un nouvel utilisateur
+            // Si l'utilisateur n'existe pas, créer un nouvel utilisateur
             if (!$user) {
                 $user = User::create([
                     'name' => $googleUser->name,
                     'email' => $googleUser->email,
-                    'password' => Hash::make(substr(md5(rand()), 0, 10)), // Mot de passe alu00e9atoire
+                    'password' => Hash::make(\Illuminate\Support\Str::random(40)), // Mot de passe aléatoire
                 ]);
 
-                // Assigner le ru00f4le 'user' par du00e9faut
+                // Assigner le rôle 'user' par défaut
                 $user->assignRole('user');
             }
 
-            // Gu00e9nu00e9rer un token API
+            // Générer un token API
             $token = $user->createToken('google-auth')->plainTextToken;
 
-            // Inclure les ru00f4les de l'utilisateur dans la ru00e9ponse
+            // Inclure les rôles de l'utilisateur dans la réponse
             $roles = $user->getRoleNames();
 
             return response()->json([
@@ -141,10 +141,11 @@ class GoogleAuthController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('Erreur authenticateWithGoogle: ' . $e->getMessage());
             return response()->json([
                 'error' => 'Erreur d\'authentification Google',
-                'message' => $e->getMessage()
-            ], 500);
+                'message' => 'Authentification Google impossible. Veuillez réessayer.'
+            ], 401);
         }
     }
 }

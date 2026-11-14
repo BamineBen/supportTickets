@@ -204,13 +204,15 @@ async function fetchDashboardData() {
     
     // Récupérer les utilisateurs récents
     try {
-      const usersResponse = await api.get('/users-list')
+      const usersResponse = await api.get('/users', { params: { per_page: 100 } })
       
       let users = []
       if (usersResponse.data && Array.isArray(usersResponse.data)) {
         users = usersResponse.data
       } else if (usersResponse.data && usersResponse.data.data && Array.isArray(usersResponse.data.data)) {
         users = usersResponse.data.data
+      } else if (usersResponse.data?.data?.data && Array.isArray(usersResponse.data.data.data)) {
+        users = usersResponse.data.data.data
       }
       
       // Trier par date d'inscription (plus récent d'abord) et prendre les 5 premiers

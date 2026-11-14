@@ -446,7 +446,7 @@ class AuthController extends Controller
 
         $user = \App\Models\User::findOrFail($request->id);
 
-        if (sha1($user->getEmailForVerification()) !== $request->hash) {
+        if (!hash_equals($user->emailVerificationHash(), (string) $request->hash)) {
             return response()->json(['message' => 'Lien de vérification invalide.'], 400);
         }
 

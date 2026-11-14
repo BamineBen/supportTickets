@@ -22,72 +22,18 @@ class UserController extends Controller
     // Les middlewares sont déjà définis dans le fichier de routes
     
     /**
-     * Route d'urgence pour lister tous les utilisateurs sans middleware de rôle
-     * À utiliser uniquement pour le débogage
+     * Refuse l'accès si l'utilisateur courant n'est pas administrateur.
      */
-    public function listAllUsers()
+    private function denyUnlessAdmin()
     {
-        try {
-            $users = User::with('roles')->get();
-            
-            return response()->json([
-                'success' => true,
-                'data' => $users
-            ]);
-        } catch (\Exception $e) {
+        $currentUser = auth()->user();
+        if (!$currentUser || !$currentUser->hasRole('admin')) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération des utilisateurs',
-                'error' => $e->getMessage()
-            ], 500);
+                'message' => 'Cette action n\'est autorisée que pour les administrateurs'
+            ], 403);
         }
-    }
-    
-    /**
-     * Route d'urgence pour changer le rôle d'un utilisateur sans middleware
-     * À utiliser uniquement pour le débogage
-     */
-    public function changeRoleEmergency(Request $request, User $user)
-    {
-        try {
-            // Vérifier si un rôle a été fourni
-            if (!$request->has('role')) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Le rôle doit être spécifié'
-                ], 400);
-            }
-            
-            $roleName = $request->input('role');
-            
-            // Vérifier si le rôle existe
-            $role = Role::where('name', $roleName)->first();
-            if (!$role) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Le rôle '{$roleName}' n'existe pas"
-                ], 404);
-            }
-            
-            // Supprimer tous les rôles existants et attribuer le nouveau rôle
-            $user->syncRoles([$roleName]);
-            
-            // Recharger l'utilisateur avec ses rôles pour la réponse
-            $user->load('roles');
-            
-            return response()->json([
-                'success' => true,
-                'message' => "Rôle modifié avec succès",
-                'data' => $user
-            ]);
-            
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors de la modification du rôle',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        return null;
     }
 
     /**
@@ -137,6 +83,10 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
+        if ($denied = $this->denyUnlessAdmin()) {
+            return $denied;
+        }
+
         // Pagination et filtres possibles
         $query = User::query();
         
@@ -158,7 +108,8 @@ class UserController extends Controller
         }
         
         // Pagination avec 10 utilisateurs par page
-        $users = $query->with('roles')->paginate(10);
+        $perPage = max(1, min((int) $request->input('per_page', 10), 100));
+        $users = $query->with('roles')->paginate($perPage);
         
         return response()->json([
             'success' => true,
@@ -208,6 +159,10 @@ class UserController extends Controller
      */
     public function show($id)
     {
+        if ($denied = $this->denyUnlessAdmin()) {
+            return $denied;
+        }
+
         $user = User::with('roles')->findOrFail($id);
         
         return response()->json([
@@ -299,6 +254,7 @@ class UserController extends Controller
             ],
             'password' => 'sometimes|nullable|string|min:8',
             'roles' => 'sometimes|array',
+            'roles.*' => 'string|exists:roles,name',
         ]);
         
         // Mise à jour des données de base
@@ -435,10 +391,10 @@ class UserController extends Controller
         } catch (\Exception $e) {
             // En cas d'erreur, annuler toutes les modifications
             \DB::rollBack();
+            \Log::error('Erreur suppression utilisateur: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la suppression de l\'utilisateur',
-                'error' => $e->getMessage()
+                'message' => 'Erreur lors de la suppression de l\'utilisateur'
             ], 500);
         }
         
@@ -486,6 +442,10 @@ class UserController extends Controller
      */
     public function getUsersByRole($role)
     {
+        if ($denied = $this->denyUnlessAdmin()) {
+            return $denied;
+        }
+
         $users = User::role($role)->get();
         
         return response()->json([

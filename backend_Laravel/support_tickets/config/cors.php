@@ -6,19 +6,15 @@ return [
     
     'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     
-    // Définition explicite des origines autorisées
-    'allowed_origins' => [
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-        'http://localhost:8000',
-        'http://127.0.0.1:8000'
-    ],
-    
-    // Pattern pour accepter d'autres origines de développement si nécessaire
-    'allowed_origins_patterns' => [
-        '#^https?://(localhost|127\.0\.0\.1)(:\d+)?$#'
-    ],
-    
+    // Origines autorisées : liste explicite, configurable via CORS_ALLOWED_ORIGINS (séparées par des virgules)
+    'allowed_origins' => array_filter(array_map('trim', explode(',', env(
+        'CORS_ALLOWED_ORIGINS',
+        'http://localhost:3000,http://127.0.0.1:3000'
+    )))),
+
+    // Pas de pattern générique : toute origine doit être listée explicitement
+    'allowed_origins_patterns' => [],
+
     // En-têtes autorisés pour les requêtes
     'allowed_headers' => [
         'X-CSRF-TOKEN',

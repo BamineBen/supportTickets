@@ -69,11 +69,11 @@ class CommentaireController extends Controller
     {
         $ticket = Ticket::findOrFail($ticket_id);
         
-        // Vu00e9rifier si l'utilisateur est autorisu00e9 u00e0 voir ce ticket
+        // Vérifier si l'utilisateur est autorisé à voir ce ticket
         if (!Auth::user()->hasRole('admin') && Auth::id() !== $ticket->user_id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Non autorisu00e9 u00e0 voir les commentaires de ce ticket'
+                'message' => 'Non autorisé à voir les commentaires de ce ticket'
             ], 403);
         }
         
@@ -150,16 +150,24 @@ class CommentaireController extends Controller
     public function store(Request $request, $ticket_id)
     {
         $ticket = Ticket::findOrFail($ticket_id);
-        
-        // Vu00e9rifier si le ticket n'est pas fermu00e9
-        if ($ticket->statut === 'fermu00e9') {
+
+        // Seuls le propriétaire du ticket et les admins peuvent commenter
+        if (!Auth::user()->hasRole('admin') && Auth::id() !== $ticket->user_id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Impossible d\'ajouter un commentaire u00e0 un ticket fermu00e9'
+                'message' => 'Non autorisé à commenter ce ticket'
+            ], 403);
+        }
+        
+        // Vérifier si le ticket n'est pas fermé
+        if ($ticket->statut === 'fermé') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Impossible d\'ajouter un commentaire à un ticket fermé'
             ], 400);
         }
         
-        // Valider les donnu00e9es de la requu00eate
+        // Valider les données de la requête
         $validator = Validator::make($request->all(), [
             'contenu' => 'required|string',
         ]);
@@ -172,17 +180,17 @@ class CommentaireController extends Controller
             ], 422);
         }
         
-        // Cru00e9er le commentaire
+        // Créer le commentaire
         $commentaire = Commentaire::create([
             'contenu' => $request->contenu,
             'user_id' => Auth::id(),
             'ticket_id' => $ticket_id,
         ]);
         
-        // Charger les relations pour la ru00e9ponse
+        // Charger les relations pour la réponse
         $commentaire->load('user');
         
-        // Envoyer une notification au cru00e9ateur du ticket s'il n'est pas l'auteur du commentaire
+        // Envoyer une notification au créateur du ticket s'il n'est pas l'auteur du commentaire
         if ($ticket->user_id !== Auth::id()) {
             $ticket->user->notify(new CommentAddedNotification($commentaire, $ticket));
         }
@@ -197,7 +205,7 @@ class CommentaireController extends Controller
         
         return response()->json([
             'status' => 'success',
-            'message' => 'Commentaire ajoutu00e9 avec succu00e8s',
+            'message' => 'Commentaire ajouté avec succès',
             'data' => $commentaire
         ], 201);
     }
@@ -251,12 +259,12 @@ class CommentaireController extends Controller
     {
         $commentaire = Commentaire::with(['user', 'ticket'])->findOrFail($id);
         
-        // Vu00e9rifier si l'utilisateur est autorisu00e9 u00e0 voir ce commentaire
+        // Vérifier si l'utilisateur est autorisé à voir ce commentaire
         $ticket = $commentaire->ticket;
         if (!Auth::user()->hasRole('admin') && Auth::id() !== $ticket->user_id && Auth::id() !== $commentaire->user_id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Non autorisu00e9 u00e0 voir ce commentaire'
+                'message' => 'Non autorisé à voir ce commentaire'
             ], 403);
         }
         
@@ -341,25 +349,25 @@ class CommentaireController extends Controller
     {
         $commentaire = Commentaire::findOrFail($id);
         
-        // Vu00e9rifier si l'utilisateur est autorisu00e9 u00e0 modifier ce commentaire
+        // Vérifier si l'utilisateur est autorisé à modifier ce commentaire
         // Seul l'auteur du commentaire ou un admin peut le modifier
         if (!Auth::user()->hasRole('admin') && Auth::id() !== $commentaire->user_id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Non autorisu00e9 u00e0 modifier ce commentaire'
+                'message' => 'Non autorisé à modifier ce commentaire'
             ], 403);
         }
         
-        // Vu00e9rifier si le ticket n'est pas fermu00e9
+        // Vérifier si le ticket n'est pas fermé
         $ticket = $commentaire->ticket;
-        if ($ticket->statut === 'fermu00e9') {
+        if ($ticket->statut === 'fermé') {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Impossible de modifier un commentaire sur un ticket fermu00e9'
+                'message' => 'Impossible de modifier un commentaire sur un ticket fermé'
             ], 400);
         }
         
-        // Valider les donnu00e9es de la requu00eate
+        // Valider les données de la requête
         $validator = Validator::make($request->all(), [
             'contenu' => 'required|string',
         ]);
@@ -372,14 +380,14 @@ class CommentaireController extends Controller
             ], 422);
         }
         
-        // Mettre u00e0 jour le commentaire
+        // Mettre à jour le commentaire
         $commentaire->update([
             'contenu' => $request->contenu,
         ]);
         
         return response()->json([
             'status' => 'success',
-            'message' => 'Commentaire mis u00e0 jour avec succu00e8s',
+            'message' => 'Commentaire mis à jour avec succès',
             'data' => $commentaire
         ]);
     }
@@ -441,21 +449,21 @@ class CommentaireController extends Controller
     {
         $commentaire = Commentaire::findOrFail($id);
         
-        // Vu00e9rifier si l'utilisateur est autorisu00e9 u00e0 supprimer ce commentaire
-        // Seul l'auteur du commentaire, le propriu00e9taire du ticket ou un admin peut le supprimer
+        // Vérifier si l'utilisateur est autorisé à supprimer ce commentaire
+        // Seul l'auteur du commentaire, le propriétaire du ticket ou un admin peut le supprimer
         $ticket = $commentaire->ticket;
         if (!Auth::user()->hasRole('admin') && Auth::id() !== $commentaire->user_id && Auth::id() !== $ticket->user_id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Non autorisu00e9 u00e0 supprimer ce commentaire'
+                'message' => 'Non autorisé à supprimer ce commentaire'
             ], 403);
         }
         
-        // Vu00e9rifier si le ticket n'est pas fermu00e9
-        if ($ticket->statut === 'fermu00e9' && !Auth::user()->hasRole('admin')) {
+        // Vérifier si le ticket n'est pas fermé
+        if ($ticket->statut === 'fermé' && !Auth::user()->hasRole('admin')) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Impossible de supprimer un commentaire sur un ticket fermu00e9'
+                'message' => 'Impossible de supprimer un commentaire sur un ticket fermé'
             ], 400);
         }
         
@@ -463,7 +471,7 @@ class CommentaireController extends Controller
         
         return response()->json([
             'status' => 'success',
-            'message' => 'Commentaire supprimu00e9 avec succu00e8s'
+            'message' => 'Commentaire supprimé avec succès'
         ]);
     }
 }

@@ -87,8 +87,8 @@
 
     try {
       console.log('Récupération des utilisateurs depuis l\'API')
-      // Utiliser la route d'urgence sans middleware qui a fait ses preuves
-      const res = await api.get('/users-list')
+      // Route protégée (auth + rôle admin vérifié côté serveur)
+      const res = await api.get('/users', { params: { per_page: 100 } })
       console.log('Réponse brute:', res)
       
       let userData = []
@@ -136,8 +136,7 @@
     try {
       console.log(`Changement de rôle pour l'utilisateur ${user.id} vers ${user.selectedRole}`)
       
-      // Utiliser la route d'urgence sans middleware qui a fait ses preuves
-      await api.patch(`/change-user-role/${user.id}`, { role: user.selectedRole })
+      await api.patch(`/users/${user.id}/role`, { role: user.selectedRole })
       console.log(`Rôle modifié avec succès pour ${user.name} -> ${user.selectedRole}`)
       
       // Rafraîchir la liste des utilisateurs pour voir les changements

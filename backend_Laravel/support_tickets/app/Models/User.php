@@ -79,4 +79,13 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         $this->notify(new WelcomeEmailNotification);
     }
+
+    /**
+     * Hash de vérification d'email : HMAC signé avec APP_KEY, donc non devinable
+     * (l'ancien sha1(email) permettait à n'importe qui de valider n'importe quel compte).
+     */
+    public function emailVerificationHash(): string
+    {
+        return hash_hmac('sha256', $this->getEmailForVerification(), config('app.key'));
+    }
 }

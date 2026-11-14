@@ -88,6 +88,11 @@ class TicketController extends Controller
     public function index(Request $request)
     {
         $query = Ticket::with('user');
+
+        // Un utilisateur non-admin ne voit que ses propres tickets
+        if (!Auth::user()->hasRole('admin')) {
+            $query->where('user_id', Auth::id());
+        }
         
         // Filtrer par statut si le paramètre est fourni
         if ($request->has('statut')) {
@@ -117,7 +122,7 @@ class TicketController extends Controller
         }
         
         // Pagination des résultats (10 par page par défaut)
-        $perPage = $request->per_page ?? 10;
+        $perPage = max(1, min((int) ($request->per_page ?? 10), 100));
         $tickets = $query->paginate($perPage);
         
         return response()->json([
@@ -197,7 +202,7 @@ class TicketController extends Controller
         }
         
         // Pagination des résultats (10 par page par défaut)
-        $perPage = $request->per_page ?? 10;
+        $perPage = max(1, min((int) ($request->per_page ?? 10), 100));
         $tickets = $query->with('user')->paginate($perPage);
         
         return response()->json([
@@ -431,12 +436,12 @@ class TicketController extends Controller
     {
         $ticket = Ticket::findOrFail($id);
         
-        // Vu00e9rifier si l'utilisateur est autorisu00e9 u00e0 modifier ce ticket
+        // Vérifier si l'utilisateur est autorisé à modifier ce ticket
         // Admin peut modifier tous les tickets, l'utilisateur ne peut modifier que ses propres tickets
         if (!Auth::user()->hasRole('admin') && Auth::id() !== $ticket->user_id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Non autorisu00e9 u00e0 modifier ce ticket'
+                'message' => 'Non autorisé à modifier ce ticket'
             ], 403);
         }
         
@@ -467,7 +472,7 @@ class TicketController extends Controller
         // Sauvegarder l'ancien statut pour la notification
         $oldStatus = $ticket->statut;
         
-        // Mettre u00e0 jour le ticket
+        // Mettre à jour le ticket
         $ticket->update($request->only(['titre', 'description', 'statut', 'deadline']));
         
         // Envoyer une notification si le statut a changé
@@ -486,7 +491,7 @@ class TicketController extends Controller
         
         return response()->json([
             'status' => 'success',
-            'message' => 'Ticket mis u00e0 jour avec succu00e8s',
+            'message' => 'Ticket mis à jour avec succès',
             'data' => $ticket
         ]);
     }
@@ -502,12 +507,12 @@ class TicketController extends Controller
     {
         $ticket = Ticket::findOrFail($id);
         
-        // Vu00e9rifier si l'utilisateur est autorisu00e9 u00e0 supprimer ce ticket
+        // Vérifier si l'utilisateur est autorisé à supprimer ce ticket
         // Admin peut supprimer tous les tickets, l'utilisateur ne peut supprimer que ses propres tickets
         if (!Auth::user()->hasRole('admin') && Auth::id() !== $ticket->user_id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Non autorisu00e9 u00e0 supprimer ce ticket'
+                'message' => 'Non autorisé à supprimer ce ticket'
             ], 403);
         }
         
@@ -515,7 +520,7 @@ class TicketController extends Controller
         
         return response()->json([
             'status' => 'success',
-            'message' => 'Ticket supprimu00e9 avec succu00e8s'
+            'message' => 'Ticket supprimé avec succès'
         ]);
     }
 }

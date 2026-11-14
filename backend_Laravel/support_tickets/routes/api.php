@@ -14,19 +14,19 @@ Route::get('/test', function() {
         'status' => 'success',
         'message' => 'L\'API fonctionne correctement',
         'timestamp' => now()->toDateTimeString(),
-        'environment' => app()->environment()
     ]);
 });
 
 // Routes publiques pour l'authentification
-Route::post('login', [AuthController::class, 'login']); // URL d'accès: http://localhost:8000/api/login
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-Route::post('/reset-password', [AuthController::class, 'resetPassword']);
-Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
+// Limitation de débit pour freiner le brute-force et le spam
+Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1'); // URL d'accès: http://localhost:8000/api/login
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
+Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
+Route::post('/verify-email', [AuthController::class, 'verifyEmail'])->middleware('throttle:10,1');
 
 // Route pour le formulaire de contact avec reCAPTCHA
-Route::post('/contact', [App\Http\Controllers\API\ContactController::class, 'send']);
+Route::post('/contact', [App\Http\Controllers\API\ContactController::class, 'send'])->middleware('throttle:5,1');
 
 
 // === ROUTES ADMIN SEULEMENT ===
@@ -80,16 +80,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/notifications/{id}', [App\Http\Controllers\API\NotificationController::class, 'destroy']);
 });
 
-// ROUTES D'URGENCE SANS MIDDLEWARES POUR DÉBOGUER
-Route::get('/users-list', [UserController::class, 'listAllUsers']);
-Route::patch('/change-user-role/{user}', [UserController::class, 'changeRoleEmergency']);
-
-// Nous n'utilisons pas de routes d'urgence, uniquement les routes standard avec middleware
-
 // Routes pour la gestion des utilisateurs
-// Routes de base accessibles à tous les utilisateurs authentifiés
+// Toutes ces routes sont réservées aux administrateurs (vérifié dans le contrôleur)
 Route::middleware(['auth:sanctum'])->group(function () {
-    // Routes pour tous les utilisateurs authentifiés (lecture seule)
     Route::get('/users', [UserController::class, 'index'])->name('api.users.index');
     Route::get('/users/{user}', [UserController::class, 'show'])->name('api.users.show');
 

@@ -20,7 +20,7 @@ class ContactController extends Controller
     public function send(Request $request)
     {
         // Validation des données du formulaire
-        Log::info('[CONTACT] Début traitement formulaire', $request->all());
+        Log::info('[CONTACT] Début traitement formulaire');
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:100',
             'email' => 'required|email|max:100',
@@ -41,10 +41,8 @@ class ContactController extends Controller
 
         try {
             // Vérifier le token reCAPTCHA avec l'API Google (désactivation de la vérification SSL pour dev)
-            $recaptchaResponse = Http::withOptions([
-                'verify' => false  // Désactive la vérification SSL - À NE PAS UTILISER en production
-            ])->asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
-                'secret' => env('RECAPTCHA_SECRET_KEY'),
+            $recaptchaResponse = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
+                'secret' => config('services.recaptcha.secret'),
                 'response' => $request->recaptchaToken,
                 'remoteip' => $request->ip()
             ]);
@@ -52,7 +50,7 @@ class ContactController extends Controller
             $recaptchaData = $recaptchaResponse->json();
             
             // Log de la réponse complète de reCAPTCHA pour diagnostic
-            Log::info('[CONTACT] Réponse reCAPTCHA complète:', $recaptchaData);
+            Log::info('[CONTACT] Réponse reCAPTCHA reçue', ['success' => $recaptchaData['success'] ?? null]);
             
             // Vérification du token reCAPTCHA
             if (!isset($recaptchaData['success'])) {
@@ -84,18 +82,8 @@ class ContactController extends Controller
                 "Date: " . now()->format('d/m/Y H:i');
 
             // Déterminer l'adresse email de réception
-            $contactEmail = env('CONTACT_EMAIL', 'logitechs629@gmail.com');
+            $contactEmail = config('services.contact_email');
 
-            // Log des infos de configuration SMTP pour debug
-            $smtpConfig = [
-                'MAIL_HOST' => config('mail.mailers.smtp.host'),
-                'MAIL_PORT' => config('mail.mailers.smtp.port'),
-                'MAIL_USERNAME' => config('mail.mailers.smtp.username'),
-                'MAIL_FROM_ADDRESS' => config('mail.from.address'),
-                'MAIL_FROM_NAME' => config('mail.from.name'),
-                'CONTACT_EMAIL' => $contactEmail
-            ];
-            Log::info('[CONTACT] Configuration SMTP', $smtpConfig);
             Log::info('[CONTACT] Tentative d\'envoi d\'email à: ' . $contactEmail . ' via Mailtrap');
 
             try {
@@ -120,7 +108,7 @@ class ContactController extends Controller
                 ]);
                 return response()->json([
                     'success' => false,
-                    'message' => "Erreur lors de l'envoi du mail de contact: " . $e->getMessage()
+                    'message' => "Erreur lors de l'envoi du message. Veuillez réessayer ultérieurement."
                 ], 500);
             }
 

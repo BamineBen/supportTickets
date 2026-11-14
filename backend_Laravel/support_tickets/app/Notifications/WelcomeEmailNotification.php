@@ -34,7 +34,7 @@ class WelcomeEmailNotification extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $url = url('/verify-email/' . $notifiable->id . '/' . sha1($notifiable->email));
+        $url = url('/verify-email/' . $notifiable->id . '/' . $notifiable->emailVerificationHash());
         
         return (new MailMessage)
             ->subject('Bienvenue dans notre application de gestion de tickets')

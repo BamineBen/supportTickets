@@ -3,148 +3,52 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Laravel\Socialite\Facades\Socialite;
 
-class GoogleAuthController extends Controller
+/**
+ * Notifications de l'utilisateur connecté.
+ * Toutes les requêtes passent par $request->user()->notifications() :
+ * un utilisateur ne peut jamais lire/modifier les notifications d'un autre.
+ */
+class NotificationController extends Controller
 {
-    /**
-     * Rediriger l'utilisateur vers Google pour l'authentification
-     *
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function redirectToGoogle()
+    public function index(Request $request)
     {
-        try {
-            // Définir explicitement les scopes requis
-            $scopes = ['https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'];
-            
-            // Paramètres supplémentaires pour forcer le consentement
-            $parameters = ['access_type' => 'offline', 'prompt' => 'consent select_account', 'response_type' => 'code'];
-            
-            // Désactiver SSL en mode développement si nécessaire
-            $googleDriver = Socialite::driver('google')
-                ->scopes($scopes)
-                ->with($parameters);
-                
-            if (app()->environment('local', 'development')) {
-                $googleDriver->setHttpClient(new \GuzzleHttp\Client(['verify' => false]));
-            }
-            
-            return $googleDriver->stateless()->redirect();
-        } catch (\Exception $e) {
-            \Log::error('Erreur lors de la redirection vers Google: ' . $e->getMessage());
-            return redirect('/login')->with('error', 'Impossible de se connecter à Google. Veuillez réessayer plus tard.');
-        }
-    }
+        $notifications = $request->user()->unreadNotifications()->latest()->limit(50)->get();
 
-    /**
-     * Obtenir les informations de l'utilisateur depuis Google
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function handleGoogleCallback()
-    {
-        try {
-            // Désactiver SSL en mode développement si nécessaire
-            $googleDriver = Socialite::driver('google')->stateless();
-            
-            if (app()->environment('local', 'development')) {
-                $googleDriver->setHttpClient(new \GuzzleHttp\Client(['verify' => false]));
-            }
-            
-            // Récupérer les informations de l'utilisateur Google
-            $googleUser = $googleDriver->user();
-            
-            // Journaliser pour déboguer
-            \Log::info('Callback Google réussi, email: ' . $googleUser->email);
-
-            // Vérifier si l'utilisateur existe déjà
-            $user = User::where('email', $googleUser->email)->first();
-
-            // Si l'utilisateur n'existe pas, créer un nouvel utilisateur
-            if (!$user) {
-                \Log::info('Création d\'un nouvel utilisateur: ' . $googleUser->email);
-                $user = User::create([
-                    'name' => $googleUser->name,
-                    'email' => $googleUser->email,
-                    'password' => Hash::make(substr(md5(rand()), 0, 10)), // Mot de passe aléatoire
-                    'email_verified_at' => now(), // Marquer l'email comme vérifié
-                ]);
-
-                // Assigner le rôle 'user' par défaut
-                $user->assignRole('user');
-            }
-
-            // Générer un token API
-            $token = $user->createToken('google-auth')->plainTextToken;
-            \Log::info('Token généré pour l\'utilisateur: ' . $user->id);
-
-            // Rediriger vers le frontend avec le token en paramètre
-            return redirect('http://localhost:3000/auth/google/callback?token=' . $token);
-
-        } catch (\Exception $e) {
-            // Journaliser l'erreur pour déboguer
-            \Log::error('Erreur dans handleGoogleCallback: ' . $e->getMessage());
-            \Log::error('Trace: ' . $e->getTraceAsString());
-            
-            // Rediriger vers la page de login avec un message d'erreur
-            return redirect('http://localhost:3000/login?error=google_auth_failed&message=' . urlencode($e->getMessage()));
-        }
-    }
-
-    /**
-     * Authentifier via Google pour l'API (pour les clients mobiles)
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function authenticateWithGoogle(Request $request)
-    {
-        $request->validate([
-            'id_token' => 'required|string',
+        return response()->json([
+            'success' => true,
+            'data' => $notifications,
+            'unread_count' => $request->user()->unreadNotifications()->count(),
         ]);
+    }
 
-        try {
-            // Vu00e9rifier le token ID avec Google
-            $googleUser = Socialite::driver('google')->userFromToken($request->id_token);
+    public function all(Request $request)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $request->user()->notifications()->latest()->paginate(20),
+        ]);
+    }
 
-            // Vu00e9rifier si l'utilisateur existe du00e9ju00e0
-            $user = User::where('email', $googleUser->email)->first();
+    public function markAsRead(Request $request, $id)
+    {
+        $request->user()->notifications()->findOrFail($id)->markAsRead();
 
-            // Si l'utilisateur n'existe pas, cru00e9er un nouvel utilisateur
-            if (!$user) {
-                $user = User::create([
-                    'name' => $googleUser->name,
-                    'email' => $googleUser->email,
-                    'password' => Hash::make(substr(md5(rand()), 0, 10)), // Mot de passe alu00e9atoire
-                ]);
+        return response()->json(['success' => true]);
+    }
 
-                // Assigner le ru00f4le 'user' par du00e9faut
-                $user->assignRole('user');
-            }
+    public function markAllAsRead(Request $request)
+    {
+        $request->user()->unreadNotifications->markAsRead();
 
-            // Gu00e9nu00e9rer un token API
-            $token = $user->createToken('google-auth')->plainTextToken;
+        return response()->json(['success' => true]);
+    }
 
-            // Inclure les ru00f4les de l'utilisateur dans la ru00e9ponse
-            $roles = $user->getRoleNames();
+    public function destroy(Request $request, $id)
+    {
+        $request->user()->notifications()->findOrFail($id)->delete();
 
-            return response()->json([
-                'user' => $user,
-                'roles' => $roles,
-                'access_token' => $token,
-                'token_type' => 'Bearer',
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Erreur d\'authentification Google',
-                'message' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json(['success' => true]);
     }
 }

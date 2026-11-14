@@ -123,7 +123,6 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Une erreur est survenue lors de la récupération des statistiques.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -353,7 +352,7 @@ class DashboardController extends Controller
             // Les admins voient tous les tickets avec deadline proche
             $tickets = Ticket::with('user')
                 ->whereBetween('deadline', [$today, $nextWeek])
-                ->where('statut', '!=', 'fermu00e9')
+                ->where('statut', '!=', 'fermé')
                 ->orderBy('deadline')
                 ->take(5)
                 ->get();
@@ -361,7 +360,7 @@ class DashboardController extends Controller
             // Les utilisateurs ne voient que leurs propres tickets
             $tickets = Ticket::where('user_id', $user->id)
                 ->whereBetween('deadline', [$today, $nextWeek])
-                ->where('statut', '!=', 'fermu00e9')
+                ->where('statut', '!=', 'fermé')
                 ->orderBy('deadline')
                 ->take(5)
                 ->get();

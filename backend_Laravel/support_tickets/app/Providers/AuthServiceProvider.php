@@ -24,9 +24,9 @@ class AuthServiceProvider extends ServiceProvider
     public function boot()
     {
         VerifyEmail::toMailUsing(function ($notifiable, $url) {
-            $frontendUrl = 'http://localhost:3000/verify-email'
+            $frontendUrl = rtrim(config('app.frontend_url', 'http://localhost:3000'), '/') . '/verify-email'
                 . '?id=' . $notifiable->getKey()
-                . '&hash=' . sha1($notifiable->getEmailForVerification());
+                . '&hash=' . $notifiable->emailVerificationHash();
 
             return (new MailMessage)
                 ->subject('Vérification de votre adresse e-mail')

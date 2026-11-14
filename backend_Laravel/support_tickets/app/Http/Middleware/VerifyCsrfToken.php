@@ -12,12 +12,6 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        'login',
-        '/login',
-        'api/login',
-        '/api/login',
-        '*login*',
-        // Vous pouvez ajouter d'autres routes API ici si nécessaire
-        // 'api/*'
+        // Aucune exception : l'API utilise des tokens Bearer (pas de session/cookie).
     ];
 }
