@@ -101,9 +101,6 @@ return [
 
     'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
 
-    // Code de la page temporaire /setup-admin (laisser vide pour la désactiver)
-    'admin_setup_token' => env('ADMIN_SETUP_TOKEN'),
-
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

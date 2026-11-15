@@ -41,8 +41,4 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     // La gestion des utilisateurs se fait via l'API (/api/users) et le frontend Vue.
 });
 
-// PAGE TEMPORAIRE de création d'admin (inactive sans ADMIN_SETUP_TOKEN, usage unique). À supprimer après usage.
-Route::get('/setup-admin', [App\Http\Controllers\AdminSetupController::class, 'show'])->middleware('throttle:5,1');
-Route::post('/setup-admin', [App\Http\Controllers\AdminSetupController::class, 'store'])->middleware('throttle:5,1');
-
 require __DIR__.'/auth.php';
